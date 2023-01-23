@@ -1,0 +1,263 @@
+USE [CIGNA_DP_REPORTS]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_SSRSReport_Print_SameDay]    Script Date: 1/23/2023 1:04:59 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ --==============================================================================
+	-- OBJECT NAME		: [dbo].[usp_SSRSReport_Print_SameDay] 
+	-- AUTHOR			: RAVEESH	
+	-- CREATED ON		: 20/05/2020	
+	-- VERSION #		: 1.0	
+	-- PURPOSE			: Retrievs reporting data for the SSRS Print same day report
+	-- EXECUTED FROM	: SSRS Report Service
+	-- INPUT PARAMETERS	: 
+	-- @FromDate		: The from date to look for
+	-- @ToDate			: To Date
+	-- @WorkType		: Type of work
+	-- 08/11/2020 MODIFIED BY JC ENRIQUEZ CHANGES TO EXCLUDE FEDEX LOGIC
+
+	/*  Valid test execution:   EXEC [dbo].[usp_SSRSReport_Print_SameDay] '06/01/2020', '06/15/2020','SAMEDAYMON' */
+	--==============================================================================
+
+--EXEC [dbo].[usp_SSRSReport_Print_SameDay] '01/01/2021', '01/20/2021','SAMEDAYMON'
+--EXEC [dbo].[usp_SSRSReport_Print_SameDay] '01/01/2021', '01/21/2021','SAMEDAYSAT'
+--EXEC [dbo].[usp_SSRSReport_Print_SameDay] '01/01/2021', '01/20/2021','SAMEDAYSUN'
+
+/* ------------------------------------------------------------------------------*/
+	/* CHANGE HISTORY:					*/
+	/* DATE :	12/30/2020	 	Version # :		 	SR/Ticket# :		BY :	jose Castillo*/
+	/* DESCRIPTION	:  BUG 779976 - Medicare 2hr TTP Report*/
+
+	/* ------------------------------------------------------------------------------*/
+
+
+ALTER PROCEDURE [dbo].[usp_SSRSReport_Print_SameDay] 
+(
+	@FromDate		DATE NULL,
+	@ToDate			DATE NULL,
+	@WorkType		Varchar(50)
+	
+)
+AS
+BEGIN
+
+	SET NOCOUNT ON;
+
+	SET @ToDate = DATEADD(dd, 1, @ToDate)
+	DECLARE @TotalRowCount BIGINT=0
+	DECLARE @Counter BIGINT=1
+
+	DECLARE @ReportData TABLE
+	(
+		RowId			INT IDENTITY(1,1),
+		ReceiveDate		DATE NULL,
+		WorkType		VARCHAR(50) NULL,
+		SweepTime		datetime NULL,
+		TotalReceived	INT NULL,
+		VolumeCap		VARCHAR(50) NULL,
+		VolumeCapCount	INT NULL,
+		Completed		INT NULL,
+		Within_11_59Hrs		INT NULL,
+		Grt_11_59Hrs		INT NULL,
+		TotalItemTransmitted INT
+		
+	)
+	DECLARE @SweepTimeTable TABLE
+	(
+		SweepTimes		datetime NULL			
+	)
+	
+		
+		--Same Day-Mon through Fri-VolumeCap is 1,200
+		If(@WorkType='SAMEDAYMON')
+		Begin
+			INSERT INTO @ReportData
+			SELECT
+					ReceiveDate	 = CAST(batch.ReceivedDateTime AS DATE),
+					WorkType	 = 'Same Day Mon through Fri',--batch.slatype,
+					SweepTime	 = case when len(LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7))) =6 then '0'+LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) else LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) end,--LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),
+					TotalReceived= COUNT(prn.PrintDocID),--Received
+					VolumeCap	 =	CASE WHEN(COUNT(prn.PrintDocID)>1200) THEN '#FF0000' ELSE '#FFFFFF' END,
+					VolumeCapCount=1200,
+					Completed	 = SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0 Then 1 ELSE 0 END),--SUM(ISNULL(prn.IsShipped, 0)),--In Progress
+					Within_11_59Hrs	 = SUM(CASE WHEN ((COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) > prn.shippingdatetime AND prn.IsShipped=1) or prn.IsFailed=1 then 1 else  0 END),   --SUM(CASE WHEN CAST(prn.shippingdatetime as time)<'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					Grt_11_59Hrs	 = SUM(CASE WHEN (COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) < prn.shippingdatetime AND prn.IsShipped=1 then 1 else  0 END),						--SUM(CASE WHEN CAST(prn.shippingdatetime as time)>'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					TotalItemTransmitted= SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0 Then 0 ELSE 1 END)																											--SUM(CASE WHEN prn.IsShipped=0 Then 0 ELSE 1 END)
+				FROM 
+						 [CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].factMedicarePrintBatch batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+				
+				WHERE
+					@FromDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' AND  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND(master.[dbo].[fn_DateIsCIGNAHolidayOrWeekend] (batch.ReceivedDateTime)=0)
+				GROUP BY
+					LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),CAST(batch.ReceivedDateTime AS DATE)
+				INSERT INTO  @SweepTimeTable(SweepTimes) VALUES ('08:00PM')
+		End
+		--Same Day-Saturday-cap is 400
+		If(@WorkType='SAMEDAYSAT')
+		Begin
+			INSERT INTO @ReportData
+			SELECT
+					ReceiveDate	 = CAST(batch.ReceivedDateTime AS DATE),
+					WorkType	 = 'Same Day Saturday',--batch.slatype,
+					SweepTime	 =case when len(LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7))) =6 then '0'+LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) else LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) end,-- LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),
+					TotalReceived= COUNT(prn.PrintDocID),--Received
+					VolumeCap	 =	CASE WHEN(COUNT(prn.PrintDocID)>400) THEN '#FF0000' ELSE '#FFFFFF' END,
+					VolumeCapCount=400,
+					Completed	 = SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0 Then 1 ELSE 0 END),
+					Within_11_59Hrs	 = SUM(CASE WHEN ((COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) > prn.shippingdatetime AND prn.IsShipped=1) or prn.IsFailed=1 then 1 else  0 END) ,	--SUM(CASE WHEN CAST(prn.shippingdatetime as time)<'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					Grt_11_59Hrs	 = SUM(CASE WHEN (COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) < prn.shippingdatetime AND prn.IsShipped=1 then 1 else  0 END),						--SUM(CASE WHEN CAST(prn.shippingdatetime as time)>'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					TotalItemTransmitted= SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0 Then 0 ELSE 1 END)																											--SUM(CASE WHEN prn.IsShipped=0 Then 0 ELSE 1 END)
+				FROM 
+						 [CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].factMedicarePrintBatch batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+
+				
+				WHERE
+					@FromDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+				GROUP BY
+					LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),CAST(batch.ReceivedDateTime AS DATE)
+				INSERT INTO  @SweepTimeTable(SweepTimes) VALUES ('03:00PM')
+		End
+
+--Same Day-Sunday & Holidays-cap is 1,800
+		If(@WorkType='SAMEDAYSUN')
+		Begin
+			INSERT INTO @ReportData
+			SELECT
+					ReceiveDate	 = CAST(batch.ReceivedDateTime AS DATE),
+					WorkType	 = 'Same Day Sunday & Holidays',--batch.slatype,
+					SweepTime	 = case when len(LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7))) =6 then '0'+LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) else LTRIM(RIGHT(CONVERT(VARCHAR, SweepTime, 100), 7)) end,--LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),
+					TotalReceived= COUNT(prn.PrintDocID),--Received
+					VolumeCap	 =	CASE WHEN(COUNT(prn.PrintDocID)>1800) THEN '#FF0000' ELSE '#FFFFFF' END,
+					VolumeCapCount= CASE WHEN master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1 THEN 1800 ELSE 3600 END,
+					Completed	 = SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0  Then 1 ELSE 0 END),--SUM(ISNULL(prn.IsShipped, 0)),--In Progress
+					Within_11_59Hrs	 =	SUM(CASE WHEN ((COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) > prn.shippingdatetime AND prn.IsShipped=1) or prn.IsFailed=1 then 1 else  0 END) ,		--SUM(CASE WHEN CAST(prn.shippingdatetime as time)<'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					Grt_11_59Hrs	 =	SUM(CASE WHEN (COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) < prn.shippingdatetime AND prn.IsShipped=1 then 1 else  0 END),							--SUM(CASE WHEN CAST(prn.shippingdatetime as time)>'23:59' AND prn.IsShipped=1 then 1 else  0 END),
+					TotalItemTransmitted=SUM(CASE WHEN prn.IsShipped=0 and prn.IsFailed=0 Then 0 ELSE 1 END)																												--SUM(CASE WHEN prn.IsShipped=0 Then 0 ELSE 1 END)
+				FROM 
+						 [CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].factMedicarePrintBatch batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					
+				WHERE
+					@FromDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1
+					OR  master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1 or DATENAME(DW, printDateTime)='Sunday')
+					
+
+					--select master.[dbo].[fn_DateIsCIGNAHoliday] ('01-18-2021  0:0:0')
+				GROUP BY
+					LTRIM(RIGHT(CONVERT(VARCHAR, prn.SweepTime, 100), 7)),CAST(batch.ReceivedDateTime AS DATE),CASE WHEN master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1 THEN 1800 ELSE 3600 END
+				INSERT INTO  @SweepTimeTable(SweepTimes) VALUES ('08:00AM'),('03:00PM')
+		End
+
+		
+		--TO INSERT MISSING DATES IN THE ABOVE GROUPING AND TO INSERT ONLY ACCORDING TO DAYS
+		IF EXISTS(SELECT 1 FROM @ReportData)
+		BEGIN
+		
+			WHILE(@FromDate<@ToDate)
+						 BEGIN	
+						 
+								IF(master.[dbo].[fn_DateIsCIGNAHoliday] (@FromDate)=1)
+													BEGIN
+
+													UPDATE @ReportData
+													SET WORKTYPE='Same Day Sunday & Holidays',
+													VolumeCapCount=1800
+													WHERE CONVERT(DATE,ReceiveDate)=CONVERT(DATE,@FromDate)
+													END	
+													
+																			
+								IF NOT EXISTS(SELECT 1 FROM @ReportData where ReceiveDate=@FromDate)
+									BEGIN										
+										 IF(@WorkType='SAMEDAYMON')
+											BEGIN
+												IF(DATENAME(DW, @FromDate) IN ('Monday','Tuesday','Wednesday','Thursday','Friday'))
+												BEGIN
+													IF(master.[dbo].[fn_DateIsCIGNAHolidayOrWeekend] (@FromDate)=0)
+													BEGIN
+													INSERT INTO @ReportData VALUES(@FromDate,(SELECT TOP 1 WorkType FROM @ReportData),'',0,0,(SELECT TOP 1 VolumeCapCount		  FROM @ReportData  where ReceiveDate=@FromDate),0,0,0,0)
+													END
+												END
+											END 
+										ELSE IF(@WorkType='SAMEDAYSAT')
+											BEGIN
+												IF(DATENAME(DW, @FromDate)='Saturday')
+													BEGIN
+														INSERT INTO @ReportData VALUES(@FromDate,(SELECT TOP 1 WorkType FROM @ReportData),'',0,0,(SELECT TOP 1 VolumeCapCount		  FROM @ReportData  where ReceiveDate=@FromDate),0,0,0,0)
+													END
+											END 
+										ELSE IF(@WorkType='SAMEDAYSUN')
+										BEGIN
+											IF(DATENAME(DW, @FromDate)='Sunday' OR (DATENAME(DW, @FromDate)<>'Saturday' AND master.[dbo].[fn_DateIsCIGNAHolidayOrWeekend] (@FromDate)=1))
+												BEGIN
+													INSERT INTO @ReportData VALUES(@FromDate,(SELECT TOP 1 WorkType FROM @ReportData),'',0,0,( SELECT ISNULL(NULLIF(MAX(VolumeCapCount), ''), 1800) FROM @ReportData  where ReceiveDate=@FromDate),0,0,0,0)
+												END
+										END
+									END
+								
+									 
+								SET @FromDate=DATEADD(DAY,1,@FromDate)
+							END
+		END
+		ELSE
+			BEGIN
+				WHILE(@FromDate<@ToDate)
+						 BEGIN							
+								 IF(@WorkType='SAMEDAYMON')
+									BEGIN
+										IF(DATENAME(DW, @FromDate) IN ('Monday','Tuesday','Wednesday','Thursday','Friday'))
+											BEGIN
+											IF(master.[dbo].[fn_DateIsCIGNAHolidayOrWeekend] (@FromDate)=0)
+													BEGIN
+												INSERT INTO @ReportData VALUES(@FromDate,'Same Day Mon through Fri','',0,0,1200,0,0,0,0)
+												END
+											END
+									END 
+								 ELSE IF(@WorkType='SAMEDAYSAT')
+									BEGIN
+										IF(DATENAME(DW, @FromDate)='Saturday')
+											BEGIN
+												INSERT INTO @ReportData VALUES(@FromDate,'Same Day Saturday','',0,0,400,0,0,0,0)
+											END
+									END 
+								ELSE IF(@WorkType='SAMEDAYSUN')
+								BEGIN
+									IF(DATENAME(DW, @FromDate)='Sunday' OR (DATENAME(DW, @FromDate)<>'Saturday' AND master.[dbo].[fn_DateIsCIGNAHolidayOrWeekend] (@FromDate)=1))
+										BEGIN
+											INSERT INTO @ReportData VALUES(@FromDate,'Same Day Sunday & Holidays','',0,0,1800,0,0,0,0)
+										END
+								END 
+								SET @FromDate=DATEADD(DAY,1,@FromDate)
+							END
+				
+			END
+
+			--TO INSERT MISSING SWEEP TIMES IN REPORT 
+			SELECT @TotalRowCount=COUNT(0) from @ReportData
+			DECLARE @TMP_ReceiveDate DATE,@TMP_WorkType VARCHAR(50),@VolumeCapCount	INT
+			WHILE(@Counter<=@TotalRowCount)
+				BEGIN
+					  IF EXISTS(SELECT 1 FROM @ReportData WHERE RowId=@COUNTER AND TotalReceived >0 )
+					  BEGIN
+						SELECT @TMP_ReceiveDate=ReceiveDate,@TMP_WorkType=WorkType,@VolumeCapCount=VolumeCapCount	 FROM @ReportData WHERE RowId=@COUNTER AND TotalReceived >0 
+						INSERT INTO @ReportData
+						SELECT @TMP_ReceiveDate,@TMP_WorkType,SweepTimes,0,0,@VolumeCapCount,0,0,0,0 FROM @SweepTimeTable WHERE SweepTimes Not IN(SELECT SweepTime from @ReportData WHERE ReceiveDate=@TMP_ReceiveDate	AND TotalReceived >0 ) 
+					 END
+
+						SET @Counter=@Counter+1
+				END
+
+
+	SELECT * FROM @ReportData order by ReceiveDate
+	SET NOCOUNT OFF;	
+
+END
+
