@@ -1,0 +1,1382 @@
+USE [CIGNA_DP_REPORTS]
+GO
+/****** Object:  StoredProcedure [dbo].[usp_SSRSReport_DetailedReport]    Script Date: 1/19/2023 12:28:15 PM ******/
+SET ANSI_NULLS ON
+GO
+SET QUOTED_IDENTIFIER ON
+GO
+
+ --==============================================================================
+	-- OBJECT NAME		: [dbo].[usp_SSRSReport_DetailedReport] 	
+	-- AUTHOR			: RAVEESH	
+	-- CREATED ON		: 20/05/2020	
+	-- VERSION #		: 1.0	
+	-- PURPOSE			: Retrievs Detailed reporting data for multiple SSRS  reports
+	-- EXECUTED FROM	: Multiple SSRS Report
+	-- INPUT PARAMETERS	: 
+	-- @ReceiveDate		: The received date to look for
+	-- @ColumnName		: Name of the ssrs report column
+	-- @WorkType		: Type of work	
+	-- @SweepTime		: Time of sweep
+
+	/*  Valid test execution:   EXEC usp_SSRSReport_DetailedReport '03/01/2020', 'Grt_11_59Hrs', 'SAMEDAYSUNDAY','05:00 PM' */
+	--==============================================================================
+/* ------------------------------------------------------------------------------*/
+	/* CHANGE HISTORY:					*/
+	/* DATE :	12/30/2020	 	Version # :		 	SR/Ticket# :		BY :	Raul Galindo*/
+	/* DESCRIPTION	:  BUG 779976 - Medicare 2hr TTP Report*/
+	/* DATE :	12/30/2020	 	Version # :		 	SR/Ticket# :		BY :	jose Castillo*/
+	/* DESCRIPTION	:  BUG 779976 - Medicare 2hr TTP Report*/
+
+	/* ------------------------------------------------------------------------------*/
+
+ALTER PROCEDURE [dbo].[usp_SSRSReport_DetailedReport] 
+(
+	@ReceiveDate		DATETIME null,
+	@ColumnName			VARCHAR(100) null,
+	@WorkType		VARCHAR(100) null,
+	--@SweepTime		Varchar(20)='NA'
+	@SweepTime		Varchar(20)
+)
+AS
+BEGIN
+
+	SET NOCOUNT ON;	
+	DECLARE @ToDate DATETIME
+	SET @ToDate = DATEADD(dd, 1, @ReceiveDate)
+	DECLARE @ReportData TABLE
+	(
+		CompletedDate		DATETIME,
+		DCN		VARCHAR(50),
+		ReceivedDate DATETIME,
+	    CorrID VARCHAR(50),
+		FileName VARCHAR(50) NULL,
+		PageCount INT NULL,
+		SpecialHandling VARCHAR(50) NULL,
+		BRE VARCHAR(50) NULL,
+		Status VARCHAR(50) NULL,
+		StatusReason VARCHAR(50) NULL,
+		PostmarkTime VARCHAR(50) NULL,
+		TrackingNumber VARCHAR(100) NULL,
+		VendorJobNumber VARCHAR(50) NULL,
+		ModuleName VARCHAR(50) NULL,
+		LetterName VARCHAR(50) NULL,
+		Language VARCHAR(50) NULL,
+		ForeignMail VARCHAR(50),
+		MemberID VARCHAR(50)
+	)
+------------------------------------------------------Medicare OutBound Fax Report---------------------------------------------------------------------------
+BEGIN
+	IF (@ColumnName= 'In Progress' AND @WorkType='Outbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+				
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND (SourceTypeid=2 AND SourceCategoryid=2)
+				AND docInfo.isTransmitted IS NULL
+			
+	END
+	IF (@ColumnName= 'Within135' AND @WorkType='Outbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND (SourceTypeid=2 AND SourceCategoryid=2)
+				AND docInfo.TurnaroundTime <= 135
+				AND docInfo.isTransmitted=1
+			
+	END
+	IF (@ColumnName= 'Greater135' AND @WorkType='Outbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND (SourceTypeid=2 AND SourceCategoryid=2)
+				AND docInfo.TurnaroundTime > 135
+				AND docInfo.isTransmitted=1
+			
+	END
+END
+------------------------------------------------------Medicare Inbound Mail Report---------------------------------------------------------------------------
+BEGIN
+	IF (@ColumnName= 'In Progress' AND @WorkType='Inbound Mail')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.isTransmitted IS NULL
+				AND docInfo.SourceDetail <> '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))
+			
+	END
+	IF (@ColumnName= 'Completed By' AND @WorkType='Inbound Mail')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND CAST(docInfo.xmitDateTime as time)<'23:59'	
+				AND docInfo.isTransmitted=1
+				AND docInfo.SourceDetail <> '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))		
+	END
+	IF (@ColumnName= 'Completed Greater' AND @WorkType='Inbound Mail')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+				
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND CAST(docInfo.xmitDateTime as time)>'23:59'	
+				AND docInfo.isTransmitted=1
+				AND docInfo.SourceDetail <> '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))			
+	END
+
+	--POBOX Logic added by JC Enriquez
+
+	IF (@ColumnName= 'In Progress' AND @WorkType='Inbound Mail 188079')
+	BEGIN
+
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.isTransmitted IS NULL
+				AND docInfo.SourceDetail = '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))
+			
+	END
+	IF (@ColumnName= 'Completed By' AND @WorkType='Inbound Mail 188079')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND CAST(docInfo.xmitDateTime as time)<'23:59'	
+				AND docInfo.isTransmitted=1
+				AND docInfo.SourceDetail = '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))		
+	END
+	IF (@ColumnName= 'Completed Greater' AND @WorkType='Inbound Mail 188079')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND CAST(docInfo.xmitDateTime as time)>'23:59'	
+				AND docInfo.isTransmitted=1
+				AND docInfo.SourceDetail = '188079'
+				AND ((SourceTypeid=1 AND SourceCategoryid=1) OR (SourceTypeid=3 AND SourceCategoryid=2))			
+	END
+
+
+
+END
+------------------------------------------------------Medicare Inbound Fax Report----------------------------------------------------------------------------
+BEGIN
+	IF (@ColumnName= 'In Progress' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.isTransmitted IS NULL AND SourceTypeId=1 AND SourceCategoryId=2
+			
+	END
+
+	IF (@ColumnName= 'Within  4Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL					
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime<4*60  AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= 'Within  8Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,	
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime Between 4*60 And 8*60  AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= 'Within  12Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime Between 8*60 And 12*60 AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= '> 12 - 120 Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL			
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime Between 12*60 And 120*60 AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= '> 120 - 144 Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL			
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime Between 120*60 And 144*60 AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= '> 144 - 172 Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL, 
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL				
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime Between 144*60 And 172*60 AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+
+	IF (@ColumnName= '> 172Hrs' AND @WorkType='Inbound Fax')
+	BEGIN
+	INSERT INTO @ReportData
+		SELECT
+				CompletedDate		= docinfo.xmitDateTime,
+				DCN					= doc.ItemName,
+				ReceivedDate		= doc.ConduentReceivedDate,
+				CorrID = NULL,
+			    FileName = NULL, 
+				PageCount = NULL, 
+				SpecialHandling =  NULL,
+				BRE = NULL,
+				Status = NULL,
+				StatusReason = NULL,
+				PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber=NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL			
+
+			FROM 
+					[CIGNA_DP_REPORTS].[dbo].[factMedicareDocument] doc WITH (NOLOCK)
+				JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicareDocumentInfo] docInfo WITH (NOLOCK) ON docInfo.DocumentID = doc.DocumentID
+			WHERE
+				@ReceiveDate <= doc.ConduentReceivedDate AND doc.ConduentReceivedDate < @ToDate
+				AND docInfo.TurnaroundTime > 172*60 AND SourceTypeId=1 AND SourceCategoryId=2
+				AND docInfo.isTransmitted=1
+			
+	END
+END
+------------------------------------------------------Medicare_Print_2HrTTP----------------------------------------------------------------------------------
+BEGIN
+IF (@ColumnName= 'Within2Hrs' AND @WorkType='2HOUR')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID		 	= dt.corrID,
+					FileName		 = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime	 = NULL,
+					TrackingNumber   = prn.TrackingNumber,
+					VendorJobNumber  = dt.VendorJobNumber,
+					ModuleName		 = prn.ModuleName,
+					LetterName		 = dt.LetterName,
+					Language		 = dt.Language,
+					ForeignMail		 = dt.ForeignMail,
+					MemberID		 = dt.MemberID
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_DP_REPORTS].[dbo].[ManifestDataPrint] dt ON batch.MCPItemName= dt.ItemName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='2HOUR'
+					AND ( DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) > 0 AND prn.IsShipped=1 OR (prn.IsFailed = 1 AND prn.IsShipped = 0) )
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime		
+	END
+	IF (@ColumnName= 'Grt_2Hrs' AND @WorkType='2HOUR')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID			 = dt.corrID,
+					FileName		 = prn.PDFFileName, 
+					PageCount		 = prn.PageCount, 
+					SpecialHandling  = prn.SpecialHandling,
+					BRE				 = prn.BRE,
+					Status			 = batch.Status,
+					StatusReason	 = batch.Status,
+					PostmarkTime	 = NULL,
+					TrackingNumber   = prn.TrackingNumber,
+					VendorJobNumber  = dt.VendorJobNumber,
+					ModuleName		 = prn.ModuleName,
+					LetterName		 = dt.LetterName,
+					Language		 = dt.Language,
+					ForeignMail		 = dt.ForeignMail,
+					MemberID		 = dt.MemberID
+
+					FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID	
+					JOIN [CIGNA_DP_REPORTS].[dbo].[ManifestDataPrint] dt ON batch.MCPItemName= dt.ItemName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='2HOUR' 
+					AND DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) <= 0
+					AND prn.IsShipped=1
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+	END
+	IF (@ColumnName= 'InProgress' AND @WorkType='2HOUR')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName,
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='2HOUR'
+					AND	prn.IsShipped=0	AND prn.IsFailed = 0
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+	END
+IF (@ColumnName= 'Within2Hrs' AND @WorkType='SAMEDAYMON')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL	
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' AND  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND( DATENAME(DW, prn.shippingDateTime)<>'Saturday' AND  DATENAME(DW, prn.shippingDateTime)<>'Sunday')
+					AND( DATENAME(DW, printDateTime)<>'Saturday' AND  DATENAME(DW, printDateTime)<>'Sunday')
+                    AND ( DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) > 0 AND prn.IsShipped=1 OR (prn.IsFailed = 1 AND prn.IsShipped = 0) )
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0
+	END
+
+	IF (@ColumnName= 'Grt_2Hrs' AND @WorkType='SAMEDAYMON')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = NULL,  
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL	
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					--JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' AND  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND( DATENAME(DW, prn.shippingDateTime)<>'Saturday' AND  DATENAME(DW, prn.shippingDateTime)<>'Sunday')
+					AND( DATENAME(DW, printDateTime)<>'Saturday' AND  DATENAME(DW, printDateTime)<>'Sunday')
+                    AND DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) <= 0 AND prn.IsShipped=1
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0
+	END
+	IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYMON')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,  
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' AND  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND( DATENAME(DW, prn.shippingDateTime)<>'Saturday' AND  DATENAME(DW, prn.shippingDateTime)<>'Sunday')
+					AND( DATENAME(DW, printDateTime)<>'Saturday' AND  DATENAME(DW, printDateTime)<>'Sunday')
+                    AND	prn.IsShipped=0	AND prn.IsFailed = 0
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0		
+	END
+
+	IF (@ColumnName= 'Within2Hrs' AND @WorkType='SAMEDAYSAT')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,   
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND( DATENAME(DW, prn.shippingDateTime)='Saturday')
+					AND( DATENAME(DW, printDateTime)='Saturday')	
+					AND ( DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) > 0 AND prn.IsShipped=1 OR (prn.IsFailed = 1 AND prn.IsShipped = 0) )
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0
+	END
+	IF (@ColumnName= 'Grt_2Hrs' AND @WorkType='SAMEDAYSAT')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,  
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL	
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND( DATENAME(DW, prn.shippingDateTime)='Saturday')
+					AND( DATENAME(DW, printDateTime)='Saturday')	
+					AND DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) <= 0
+					AND DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) <= 0 AND prn.IsShipped=1 
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0
+	END
+	IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYSAT')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,  
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND( DATENAME(DW, prn.shippingDateTime)='Saturday')
+					AND( DATENAME(DW, printDateTime)='Saturday')
+					AND	prn.IsShipped=0	AND prn.IsFailed = 0
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime		
+                    AND master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=0
+    END
+
+
+	IF (@ColumnName= 'Within2Hrs' AND @WorkType='SAMEDAYSUN')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+                    @ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1)
+					AND( DATENAME(DW, prn.shippingDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (prn.shippingDateTime)=1)
+					AND( DATENAME(DW, printDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1)
+					AND ( DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) > 0 AND prn.IsShipped=1 OR (prn.IsFailed = 1 AND prn.IsShipped = 0) )
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+	END
+	IF (@ColumnName= 'Grt_2Hrs' AND @WorkType='SAMEDAYSUN')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1)
+					AND( DATENAME(DW, prn.shippingDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (prn.shippingDateTime)=1)
+					AND( DATENAME(DW, printDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1)
+                    AND DATEDIFF(SECOND, ShippingDateTime, prn.DueDateTime) <= 0 AND prn.IsShipped=1
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+	END
+	IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYSUN')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID =  trite.corrID,
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL	
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND prn.SpecialHandling ='FedEx'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1)
+					AND( DATENAME(DW, prn.shippingDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (prn.shippingDateTime)=1)
+					AND( DATENAME(DW, printDateTime)='Sunday' OR  master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1)
+                    AND	prn.IsShipped=0	AND prn.IsFailed = 0
+                    AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime
+	END
+END
+------------------------------------------------------Medicare_Print_SameDayTTP------------------------------------------------------------------------------
+BEGIN
+IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYMONDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = NULL,
+					VendorJobNumber = NULL,
+					ModuleName = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' OR  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND prn.IsShipped=0	and prn.IsFailed=0			
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime		
+	END
+	IF (@ColumnName= 'Within_11_59Hrs' AND @WorkType='SAMEDAYMONDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+				TrackingNumber = NULL,
+				VendorJobNumber = NULL,
+				ModuleName = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' OR  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')																--jpchange
+					AND ((prn.IsShipped=1
+					AND COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59') > prn.shippingdatetime )
+					or prn.IsFailed=1)
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime		
+	END
+	IF (@ColumnName= 'Grt_11_59Hrs' AND @WorkType='SAMEDAYMONDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status, 
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+					PostmarkTime = NULL,
+				VendorJobNumber = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND (DATENAME(DW, batch.ReceivedDateTime)<>'Saturday' OR  DATENAME(DW, batch.ReceivedDateTime)<>'Sunday')
+					AND ( (COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) < prn.shippingdatetime AND prn.IsShipped=1
+					)
+					AND CASE WHEN LEN(LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)))=7 THEN '0'+LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) ELSE LTRIM(Right(REPLACE(CONVERT(nvarchar(MAX),CAST(prn.SweepTime as smalldatetime), 109),':00:000', ' '), 8)) END=@SweepTime		
+	END
+
+
+	IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYSATURDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+				   PostmarkTime = NULL,
+				VendorJobNumber = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND (DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND prn.IsShipped=0	and prn.IsFailed=0	
+	END
+	IF (@ColumnName= 'Within_11_59Hrs' AND @WorkType='SAMEDAYSATURDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+					PostmarkTime = NULL,
+				VendorJobNumber = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND (DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND ((prn.IsShipped=1
+					AND COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59') > prn.shippingdatetime )
+					or prn.IsFailed=1)
+	END
+
+	IF (@ColumnName= 'Grt_11_59Hrs' AND @WorkType='SAMEDAYSATURDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+					 PostmarkTime = NULL,
+				VendorJobNumber = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL	
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName	
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND (DATENAME(DW, batch.ReceivedDateTime)='Saturday')
+					AND ( (COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59')) < prn.shippingdatetime AND prn.IsShipped=1) 
+
+	END
+
+	IF (@ColumnName= 'InProgress' AND @WorkType='SAMEDAYSUNDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+					PostmarkTime = NULL,
+					VendorJobNumber = NULL,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1
+					OR master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1 or  DATENAME(DW, printDateTime)='Sunday')
+					AND prn.IsShipped=0 and prn.IsFailed=0
+	END
+
+	IF (@ColumnName= 'Within_11_59Hrs' AND @WorkType='SAMEDAYSUNDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID,
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					TrackingNumber = prn.TrackingNumber,
+					ModuleName = prn.ModuleName,
+					PostmarkTime = NULL,
+				VendorJobNumber = NULL,
+				LetterName= NULL,
+				Language= NULL,
+				ForeignMail= NULL,
+				MemberID	= NULL		
+					
+				FROM 
+						[CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+					@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1
+					OR master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1 or  DATENAME(DW, printDateTime)='Sunday')
+					AND ((prn.IsShipped=1
+					AND COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59') > prn.shippingdatetime )
+					or prn.IsFailed=1)
+	END
+
+	IF (@ColumnName= 'Grt_11_59Hrs' AND @WorkType='SAMEDAYSUNDAY')
+	BEGIN
+	INSERT INTO @ReportData
+			SELECT
+					CompletedDate	 = prn.ShippingDateTime,
+					DCN				 = prn.MCPItemname,
+					ReceivedDate	 = batch.ReceivedDateTime,
+					CorrID = trite.corrID, 
+					FileName = prn.PDFFileName, 
+					PageCount = prn.PageCount, 
+					SpecialHandling = prn.SpecialHandling,
+					BRE = prn.BRE,
+					Status = batch.Status,
+					StatusReason = batch.Status,
+					PostmarkTime = NULL,
+					TrackingNumber = prn.TrackingNumber,
+					VendorJobNumber = NULL,
+					ModuleName = prn.ModuleName,
+					LetterName= NULL,
+					Language= NULL,
+					ForeignMail= NULL,
+					MemberID	= NULL				
+					
+				FROM 
+						 [CIGNA_DP_REPORTS].[dbo].[factMedicarePrint] prn WITH (NOLOCK)
+					JOIN [CIGNA_DP_REPORTS].[dbo].[factMedicarePrintBatch] batch WITH (NOLOCK) ON batch.PrintBatchID = prn.PrintBatchID
+					JOIN [CIGNA_MCP].[dbo].[tritemudfmedicareprint] trite WITH (NOLOCK) ON trite.PDFFileName = prn.PDFFileName
+				WHERE
+						@ReceiveDate <= batch.ReceivedDateTime AND batch.ReceivedDateTime < @ToDate AND Batch.slaType='SAMEDAY'
+					AND( DATENAME(DW, batch.ReceivedDateTime)='Sunday' OR master.[dbo].[fn_DateIsCIGNAHoliday] (batch.ReceivedDateTime)=1
+					OR master.[dbo].[fn_DateIsCIGNAHoliday] (printDateTime)=1 or  DATENAME(DW, printDateTime)='Sunday')
+					AND COnvert(DATETIME,convert(varchar, batch.ReceivedDateTime, 23)+' 23:59:59') < prn.shippingdatetime AND prn.IsShipped=1
+					
+	END
+END
+	SELECT * FROM @ReportData
+	SET NOCOUNT OFF;	
+    
+END
